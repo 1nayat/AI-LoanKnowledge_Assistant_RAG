@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using UglyToad.PdfPig;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace LoanAI.Infrastructure.Documents;
 
@@ -20,7 +21,6 @@ public class DocumentService : IDocumentService
 
     public async Task ProcessDocumentsAsync(IFormFile file)
     {
-        // 1️⃣ Save file to disk
         var documentsPath = Path.Combine(
             Directory.GetCurrentDirectory(),
             "Documents");
@@ -35,30 +35,47 @@ public class DocumentService : IDocumentService
             await file.CopyToAsync(stream);
         }
 
-        // 2️⃣ Extract text from PDF
         var textBuilder = new StringBuilder();
 
         using (var document = PdfDocument.Open(filePath))
         {
             foreach (var page in document.GetPages())
             {
-                textBuilder.AppendLine(page.Text);
+                var pageText = page.Text;
+
+                pageText = Regex.Replace(pageText, @"\s+", " ");
+
+                textBuilder.AppendLine(pageText);
             }
         }
 
         var fullText = textBuilder.ToString();
 
-        // 3️⃣ Chunk text (simple paragraph-based chunking)
-        var chunks = fullText
-            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
-            .Where(c => c.Length > 100)
-            .ToList();
+        int chunkSize = 500;   
+        int overlap = 100;    
 
-        // 4️⃣ For each chunk → embed + store
+        var chunks = new List<string>();
+
+        for (int i = 0; i < fullText.Length; i += chunkSize - overlap)
+        {
+            var length = Math.Min(chunkSize, fullText.Length - i);
+            var chunk = fullText.Substring(i, length);
+
+            if (!string.IsNullOrWhiteSpace(chunk))
+            {
+                chunks.Add(chunk);
+            }
+        }
+
+        Console.WriteLine($"Total Chunks Created: {chunks.Count}");
+
         int chunkIndex = 0;
 
         foreach (var chunk in chunks)
         {
+            Console.WriteLine($"--- Chunk {chunkIndex} ---");
+            Console.WriteLine(chunk);
+
             var embedding = await _embeddingService.GenerateEmbeddingAsync(chunk);
 
             var id = Random.Shared.Next(1, int.MaxValue);
@@ -70,5 +87,7 @@ public class DocumentService : IDocumentService
 
             chunkIndex++;
         }
+
+        Console.WriteLine("Document processed and stored successfully.");
     }
 }
