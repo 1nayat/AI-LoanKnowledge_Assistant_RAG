@@ -2,6 +2,7 @@ using LoanAI.Application.Interfaces;
 using LoanAI.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Net.Sockets;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -74,3 +75,11 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+//Invoke - RestMethod - Uri "http://localhost:6333/collections/loan_docs" `
+//-Method Put `
+//-Body '{"vectors":{"size":768,"distance":"Cosine"}}' `
+//-ContentType "application/json"
+
+
+//docker run -p 6333:6333 qdrant / qdrant
